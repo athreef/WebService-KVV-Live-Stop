@@ -1,0 +1,6 @@
+.build/
+*.sw*
+.DS_Store
+WebService-KVV-Live-Stop-*/
+WebService-KVV-Live-Stop-*.tar.gz
+
