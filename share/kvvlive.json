@@ -1,5 +1,5 @@
 {
-    "base_url" : "http://live.kvv.de/webapp/",
+    "base_url" : "http://live.kvv.de/webapp",
     "version" :  "0.2",
     "methods" : {
         "stop_by_latlon" : {
@@ -18,16 +18,14 @@
             "required_params" : [ "ID" ]
         },
         "departures_by_stop" : {
-            "path" :   "/departures/bystop/:ID?maxInfos=:maxInfos",
+            "path" :   "/departures/bystop/:ID",
             "method" : "GET",
-            "required_params" : [ "ID" ],
-            "optional_params" : [ "maxInfos" ]
+            "required_params" : [ "ID" ]
         },
         "departures_by_route" : {
-            "path" :   "/departures/byroute/:ROUTE/:ID?maxInfos=:maxInfos",
+            "path" :   "/departures/byroute/:ROUTE/:ID",
             "method" : "GET",
-            "required_params" : [ "ROUTE", "ID" ],
-            "optional_params" : [ "maxInfos" ]
+            "required_params" : [ "ROUTE", "ID" ]
         }
     }
 }

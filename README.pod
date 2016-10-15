@@ -9,10 +9,10 @@ WebService::KVV::Live::Stop - Arrival times for Trams/Buses in the Karlsruhe met
 
 =head1 SYNOPSIS
 
-    use WebService::KVV::Live:Stop;
+    use WebService::KVV::Live::Stop;
 
     my $stop = WebService::KVV::Live::Stop->new("Siemensallee");
-    print "Arrival time: $_{time} $_{what}\n" for $stop->departures;
+    print "Arrival time: $_->{time} $_->{what}\n" for $stop->departures;
 
 
 =head1 DESCRIPTION
@@ -22,6 +22,8 @@ API for searching for bus/tram stops in the Karlsruhe Metropolitan Area (Karlsru
 =head1 IMPLEMENTATION
 
 Not really an API, just a client for L<http://live.kvv.de>. See L<kvvlive.json|https://github.com/athreef/WebService-KVV-Live-Stop/blob/master/share/kvvlive.json> for details.
+
+The client is based on L<Net::HTTP::Spore> and has some workarounds: It overrides a method from C<Net::HTTP::Spore > that doesn't handle colons properly and throws a generic message on errors instead of the more specific HTTP error messages. 
 
 =head1 METHODS AND ARGUMENTS
 
