@@ -7,7 +7,6 @@ package WebService::KVV::Live::Stop;
 
 use Carp;
 use utf8;
-use Data::Dumper;
 use Net::HTTP::Spore::Middleware::Format::JSON;
 use Net::HTTP::Spore 0.07;
 use Net::HTTP::Spore::Middleware::DefaultParams;
@@ -24,10 +23,10 @@ WebService::KVV::Live::Stop - Arrival times for Trams/Buses in the Karlsruhe met
 
 =head1 SYNOPSIS
 
-    use WebService::KVV::Live:Stop;
+    use WebService::KVV::Live::Stop;
 
     my $stop = WebService::KVV::Live::Stop->new("Siemensallee");
-    print "Arrival time: $_{time} $_{what}\n" for $stop->departures;
+    print "Arrival time: $_->{time} $_->{route} $_->{destination}\n" for $stop->departures;
 
 
 =head1 DESCRIPTION
@@ -44,6 +43,8 @@ $client->enable('DefaultParams', default_params => { key => '377d840e54b59adbe53
 =head1 IMPLEMENTATION
 
 Not really an API, just a client for L<http://live.kvv.de>. See L<kvvlive.json|https://github.com/athreef/WebService-KVV-Live-Stop/blob/master/share/kvvlive.json> for details.
+
+The client is based on L<Net::HTTP::Spore> and has some workarounds: It overrides a method from C<Net::HTTP::Spore > that doesn't handle colons properly and throws a generic message on errors instead of the more specific HTTP error messages. 
 
 =head1 METHODS AND ARGUMENTS
 
@@ -86,15 +87,110 @@ Returns a list of departures for a WebService::KVV::Live::Stop. Results can be r
 
 =cut
 
+sub _departures {
+    my $id = shift;
+    my $route = shift;
+
+    # ?maxInfos=:maxInfos
+    return defined $route ? $client->departures_by_route(ID => $id, ROUTE => $route)
+                       : $client->departures_by_stop(ID => $id);
+}
+
 sub departures {
     my $self = shift;
     my $route = shift;
 
-    my $response =
-        defined $route ? $client->departures_by_route(ID => $self->{id}, ROUTE => $route)
-                       : $client->departures_by_stop( ID => $self->{id});
-    return $response->{body}
+    my $id = $self->{id};
+    my $response;
+    eval {
+    $response = _departures $id, $route;
+    };
+    defined $response or croak "Error during REST request (Ye, I know the error message sucks but it's acutally Net::HTTP::Spore throwing an exception without context)";
+    return @{$response->{body}->{departures}}
+}
 
+no warnings 'redefine';
+sub Net::HTTP::Spore::Request::finalize {
+    my $self = shift;
+
+    my $path_info = $self->env->{PATH_INFO};
+
+    my $form_data = $self->env->{'spore.form_data'};
+    my $headers   = $self->env->{'spore.headers'};
+    my $params    = $self->env->{'spore.params'} || [];
+
+    my $query = [];
+    my $form  = {};
+
+    for ( my $i = 0 ; $i < scalar @$params ; $i++ ) {
+        my $k = $params->[$i];
+        my $v = $params->[++$i];
+        my $modified = 0;
+
+        if ($path_info && $path_info =~ s/\:$k/$v/) {
+            $modified++;
+        }
+
+        foreach my $f_k (keys %$form_data) {
+            my $f_v = $form_data->{$f_k};
+            if ($f_v =~ s/^\:$k/$v/) {
+                $form->{$f_k} = $f_v;
+                $modified++;
+            }
+        }
+
+        foreach my $h_k (keys %$headers) {
+            my $h_v = $headers->{$h_k};
+            if ($h_v =~ s/^\:$k/$v/) {
+                $self->header($h_k => $h_v);
+                $modified++;
+            }
+        }
+
+        if ($modified == 0) {
+            if (defined $v) {
+                push @$query, $k.'='.$v;
+            }else{
+                push @$query, $k;
+            }
+        }
+    }
+
+    # XXX: we don't want colons stripped away
+    # clean remaining :name in url
+    #$path_info =~ s/:\w+//g if $path_info;
+
+    my $query_string;
+    if (scalar @$query) {
+        $query_string = join('&', @$query);
+    }
+
+    $self->env->{PATH_INFO}    = $path_info;
+    $self->env->{QUERY_STRING} = $query_string;
+
+    my $uri = $self->uri($path_info, $query_string || '');
+
+    my $request = HTTP::Request->new(
+        $self->method => $uri, $self->headers
+    );
+
+    if ( keys %$form_data ) {
+        $self->env->{'spore.form_data'} = $form;
+        my ( $content, $b ) = $self->_form_data($form);
+        $request->content($content);
+        $request->header('Content-Length' => length($content));
+        $request->header(
+            'Content-Type' => 'multipart/form-data; boundary=' . $b );
+    }
+
+    if ( my $payload = $self->content ) {
+        $request->content($payload);
+        $request->header(
+            'Content-Type' => 'application/x-www-form-urlencoded' )
+          unless $request->header('Content-Type');
+    }
+
+    return $request;
 }
 
 1;
