@@ -1,5 +1,5 @@
 {
-    "base_url" : "http://live.kvv.de/webapp",
+    "base_url" : "https://live.kvv.de/webapp",
     "version" :  "0.2",
     "methods" : {
         "stop_by_latlon" : {
