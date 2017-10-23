@@ -10,9 +10,29 @@ WebService::KVV::Live::Stop - Arrival times for Trams/Buses in the Karlsruhe met
 =head1 SYNOPSIS
 
     use WebService::KVV::Live::Stop;
+    use utf8;
+    use open qw( :encoding(UTF-8) :std );
 
     my $stop = WebService::KVV::Live::Stop->new("Siemensallee");
     print "Arrival time: $_->{time} $_->{route} $_->{destination}\n" for $stop->departures;
+
+Print departure table:
+
+    use WebService::KVV::Live::Stop;
+    use utf8;
+    use open qw( :encoding(UTF-8) :std );
+    
+    use Data::Dumper::Table;
+    use Data::Visitor::Callback;
+
+    $stop = WebService::KVV::Live::Stop->new($ARGV[0] // 'Kronenplatz');
+    my @entries = $stop->departures;
+    Data::Visitor::Callback->new('JSON::PP::Boolean' => sub { $_ = $_ ? 'true' : 0 })->visit(@entries);
+    my $departure_table = Tabulate \@entries;
+    $departure_table =~ s/^.*\n//; # remove object type
+
+    print $departure_tabletable;
+
 
 
 =head1 DESCRIPTION
@@ -40,6 +60,7 @@ Returns a list of C<WebService::KVV::Live::Stop>s in list context. In scalar con
 Returns a list of departures for a WebService::KVV::Live::Stop. Results can be restricted to a particular route (Linie) by the optional argument.
 
 =back
+
 
 =head1 GIT REPOSITORY
 
